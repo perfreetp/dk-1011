@@ -51,6 +51,7 @@ export interface Rule {
   advanceDays: number;
   restrictions: string[];
   examples: string[];
+  relatedPurposes?: string[];
 }
 
 export interface Consultation {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Map, BookOpen, ClipboardList, MessageCircle, Star } from 'lucide-react';
+import { Menu, X, Map, BookOpen, ClipboardList, MessageCircle, Star, FileText } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { path: '/progress', label: '进度查询', icon: ClipboardList },
   { path: '/consult', label: '在线咨询', icon: MessageCircle },
   { path: '/feedback', label: '意见反馈', icon: Star },
+  { path: '/records', label: '服务记录', icon: FileText },
 ];
 
 export default function Navbar() {

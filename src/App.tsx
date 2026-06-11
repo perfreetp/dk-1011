@@ -7,6 +7,7 @@ import RulesPage from "./pages/RulesPage";
 import ProgressPage from "./pages/ProgressPage";
 import ConsultPage from "./pages/ConsultPage";
 import FeedbackPage from "./pages/FeedbackPage";
+import ServiceRecordsPage from "./pages/ServiceRecordsPage";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/consult" element={<ConsultPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/records" element={<ServiceRecordsPage />} />
           </Routes>
         </main>
         <Footer />

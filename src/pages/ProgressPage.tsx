@@ -10,7 +10,16 @@ interface Subscription {
   subscribeTime: string;
 }
 
+interface CorrectionRecord {
+  id: string;
+  applicationNo: string;
+  materials: string[];
+  submitTime: string;
+  status: 'pending' | 'reviewing' | 'accepted';
+}
+
 const STORAGE_KEY = 'airspace_subscriptions';
+const CORRECTION_KEY = 'correction_records';
 
 function loadSubscriptions(): Subscription[] {
   try {
@@ -23,6 +32,19 @@ function loadSubscriptions(): Subscription[] {
 
 function saveSubscriptions(subscriptions: Subscription[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
+}
+
+function loadCorrectionRecords(): CorrectionRecord[] {
+  try {
+    const data = localStorage.getItem(CORRECTION_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCorrectionRecords(records: CorrectionRecord[]) {
+  localStorage.setItem(CORRECTION_KEY, JSON.stringify(records));
 }
 
 function validatePhone(phone: string): boolean {
@@ -50,9 +72,25 @@ export default function ProgressPage() {
   const [subscribeSuccess, setSubscribeSuccess] = useState('');
   const [showSubscriptionPanel, setShowSubscriptionPanel] = useState(false);
 
+  const [correctionRecords, setCorrectionRecords] = useState<CorrectionRecord[]>([]);
+  const [showSubscriptionsList, setShowSubscriptionsList] = useState(false);
+
   useEffect(() => {
     setSubscriptions(loadSubscriptions());
+    setCorrectionRecords(loadCorrectionRecords());
   }, []);
+
+  const groupedSubscriptions = subscriptions.reduce((acc, sub) => {
+    if (!acc[sub.applicationNo]) {
+      acc[sub.applicationNo] = [];
+    }
+    acc[sub.applicationNo].push(sub);
+    return acc;
+  }, {} as Record<string, Subscription[]>);
+
+  const relatedCorrectionRecords = searchResult
+    ? correctionRecords.filter(r => r.applicationNo === searchResult.applicationNo)
+    : [];
 
   const sampleNumbers = ['KY2024001', 'KY2024002', 'KY2024003'];
 
@@ -169,7 +207,39 @@ ${new Date().toLocaleDateString('zh-CN')}
   };
 
   const handleSubmitCorrection = () => {
-    alert('补正材料提交功能：\n\n请将补正材料发送至邮箱：correction@airspace.gov.cn\n或联系客服：400-888-8888\n\n请在邮件中注明申请编号：' + searchResult?.applicationNo);
+    if (!searchResult?.correctionMaterials) return;
+
+    const newRecord: CorrectionRecord = {
+      id: generateId(),
+      applicationNo: searchResult.applicationNo,
+      materials: searchResult.correctionMaterials,
+      submitTime: new Date().toLocaleString('zh-CN'),
+      status: 'pending',
+    };
+
+    const updated = [...correctionRecords, newRecord];
+    setCorrectionRecords(updated);
+    saveCorrectionRecords(updated);
+    
+    alert(`补正材料提交成功！\n\n提交材料：${searchResult.correctionMaterials.join('、')}\n提交时间：${newRecord.submitTime}\n\n您可以在下方查看补正材料提交记录。`);
+  };
+
+  const getCorrectionStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return '待审核';
+      case 'reviewing': return '审核中';
+      case 'accepted': return '已受理';
+      default: return status;
+    }
+  };
+
+  const getCorrectionStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-warning-100 text-warning-600';
+      case 'reviewing': return 'bg-primary-100 text-primary-600';
+      case 'accepted': return 'bg-success-100 text-success-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
   };
 
   const getStatusConfig = (status: string) => {
@@ -557,6 +627,84 @@ ${new Date().toLocaleDateString('zh-CN')}
                           {change.remark && (
                             <div className="text-sm text-gray-600 mt-1">{change.remark}</div>
                           )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {relatedCorrectionRecords.length > 0 && (
+              <div className="card">
+                <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+                  <Upload className="w-5 h-5 text-primary-600" />
+                  <span>补正材料提交记录</span>
+                </h3>
+                <div className="space-y-3">
+                  {relatedCorrectionRecords.map((record, index) => (
+                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-gray-500">提交时间：{record.submitTime}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCorrectionStatusColor(record.status)}`}>
+                          {getCorrectionStatusLabel(record.status)}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">提交材料：</div>
+                        <div className="flex flex-wrap gap-2">
+                          {record.materials.map((material, i) => (
+                            <span key={i} className="px-3 py-1 bg-white text-gray-700 text-sm rounded-full border">
+                              {material}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(groupedSubscriptions).length > 0 && (
+              <div className="card">
+                <button
+                  onClick={() => setShowSubscriptionsList(!showSubscriptionsList)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <h3 className="font-semibold text-gray-800 flex items-center space-x-2">
+                    <Bell className="w-5 h-5 text-primary-600" />
+                    <span>我的订阅记录</span>
+                    <span className="text-sm text-gray-500 font-normal">({Object.keys(groupedSubscriptions).length}个申请)</span>
+                  </h3>
+                  {showSubscriptionsList ? (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </button>
+                {showSubscriptionsList && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {Object.entries(groupedSubscriptions).map(([appNo, subs]) => (
+                      <div key={appNo} className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-primary-600">{appNo}</span>
+                          <span className="text-sm text-gray-500">{subs.length}个联系方式</span>
+                        </div>
+                        <div className="space-y-2">
+                          {subs.map((sub) => (
+                            <div key={sub.id} className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                {sub.type === 'phone' ? (
+                                  <Phone className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                  <Mail className="w-4 h-4 text-gray-400" />
+                                )}
+                                <span className="text-sm text-gray-700">{sub.contact}</span>
+                              </div>
+                              <span className="text-xs text-gray-400">{sub.subscribeTime}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
-import { BookOpen, FileText, Clock, AlertCircle, Lightbulb, ChevronRight, ArrowLeft, MapPin } from 'lucide-react';
-import { mockRules } from '../data/mockData';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, FileText, Clock, AlertCircle, Lightbulb, ChevronRight, ArrowLeft, MapPin, Edit3, Save, CheckCircle, Trash2 } from 'lucide-react';
+import { mockRules, mockAreas } from '../data/mockData';
 
 interface LocationState {
   areaId?: string;
@@ -10,20 +10,92 @@ interface LocationState {
   action?: 'apply' | 'viewMaterials';
 }
 
+interface DraftApplication {
+  id: string;
+  areaId?: string;
+  areaName?: string;
+  purpose?: string;
+  date?: string;
+  timeSlot?: string;
+  materials: { name: string; prepared: boolean }[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+const DRAFT_STORAGE_KEY = 'application_drafts';
+
+function loadDrafts(): DraftApplication[] {
+  try {
+    const data = localStorage.getItem(DRAFT_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDrafts(drafts: DraftApplication[]) {
+  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+}
+
+function findMatchingRule(purpose: string): typeof mockRules[0] | undefined {
+  const exactMatch = mockRules.find(rule => rule.category === purpose);
+  if (exactMatch) return exactMatch;
+  
+  const relatedMatch = mockRules.find(rule => 
+    rule.relatedPurposes?.includes(purpose)
+  );
+  if (relatedMatch) return relatedMatch;
+  
+  const fuzzyMatch = mockRules.find(rule => 
+    rule.category.toLowerCase().includes(purpose.toLowerCase()) ||
+    rule.examples.some(e => e.toLowerCase().includes(purpose.toLowerCase()))
+  );
+  return fuzzyMatch || mockRules[0];
+}
+
 export default function RulesPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = location.state as LocationState | undefined;
   const [activeTab, setActiveTab] = useState(mockRules[0].category);
+  const [drafts, setDrafts] = useState<DraftApplication[]>(loadDrafts());
+  const [selectedDraft, setSelectedDraft] = useState<DraftApplication | null>(null);
+  const [showDraftPanel, setShowDraftPanel] = useState(false);
+  const [materialsChecklist, setMaterialsChecklist] = useState<{ name: string; prepared: boolean }[]>([]);
+  const [draftDate, setDraftDate] = useState('');
+  const [draftTimeSlot, setDraftTimeSlot] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const materialsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (state?.purpose) {
-      const matchingRule = mockRules.find(rule => rule.category === state.purpose);
+      const matchingRule = findMatchingRule(state.purpose);
       if (matchingRule) {
         setActiveTab(matchingRule.category);
       }
     }
   }, [state]);
+
+  useEffect(() => {
+    const activeRule = mockRules.find(r => r.category === activeTab);
+    if (activeRule) {
+      setMaterialsChecklist(activeRule.materials.map(m => ({ name: m, prepared: false })));
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (state?.areaName) {
+      const existingDraft = drafts.find(
+        d => d.areaName === state.areaName && d.purpose === state.purpose
+      );
+      if (existingDraft) {
+        setSelectedDraft(existingDraft);
+        setMaterialsChecklist(existingDraft.materials);
+        setDraftDate(existingDraft.date || '');
+        setDraftTimeSlot(existingDraft.timeSlot || '');
+      }
+    }
+  }, [state, drafts]);
 
   useEffect(() => {
     if (state?.action === 'viewMaterials' && materialsRef.current) {
@@ -34,6 +106,55 @@ export default function RulesPage() {
   }, [state, activeTab]);
 
   const activeRule = mockRules.find((rule) => rule.category === activeTab) || mockRules[0];
+
+  const handleToggleMaterial = (index: number) => {
+    const updated = [...materialsChecklist];
+    updated[index] = { ...updated[index], prepared: !updated[index].prepared };
+    setMaterialsChecklist(updated);
+  };
+
+  const handleSaveDraft = () => {
+    setIsSaving(true);
+    const newDraft: DraftApplication = {
+      id: selectedDraft?.id || Date.now().toString(),
+      areaId: state?.areaId,
+      areaName: state?.areaName,
+      purpose: state?.purpose || activeTab,
+      date: draftDate,
+      timeSlot: draftTimeSlot,
+      materials: materialsChecklist,
+      createdAt: selectedDraft?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const updatedDrafts = selectedDraft
+      ? drafts.map(d => d.id === selectedDraft.id ? newDraft : d)
+      : [...drafts, newDraft];
+
+    saveDrafts(updatedDrafts);
+    setDrafts(updatedDrafts);
+    setSelectedDraft(newDraft);
+    setIsSaving(false);
+  };
+
+  const handleDeleteDraft = () => {
+    if (!selectedDraft) return;
+    const updatedDrafts = drafts.filter(d => d.id !== selectedDraft.id);
+    saveDrafts(updatedDrafts);
+    setDrafts(updatedDrafts);
+    setSelectedDraft(null);
+    setMaterialsChecklist(activeRule.materials.map(m => ({ name: m, prepared: false })));
+    setDraftDate('');
+    setDraftTimeSlot('');
+  };
+
+  const getAreaInfo = () => {
+    if (!state?.areaId) return null;
+    return mockAreas.find(a => a.id === state.areaId);
+  };
+
+  const areaInfo = getAreaInfo();
+  const preparedCount = materialsChecklist.filter(m => m.prepared).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -122,6 +243,45 @@ export default function RulesPage() {
                 </div>
               </div>
 
+              {areaInfo && (
+              <div className="mt-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <MapPin className="w-5 h-5 text-primary-600" />
+                  <h3 className="font-semibold text-gray-800">区域信息</h3>
+                </div>
+                <div className="bg-primary-50 rounded-xl p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">开放时间</div>
+                      <div className="font-medium text-gray-800">{areaInfo.applicableTime}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">区域状态</div>
+                      <div className={`font-medium ${
+                        areaInfo.type === 'available' ? 'text-success-600' :
+                        areaInfo.type === 'restricted' ? 'text-warning-600' : 'text-danger-600'
+                      }`}>
+                        {areaInfo.status}
+                      </div>
+                    </div>
+                  </div>
+                  {areaInfo.nearbyRestrictions.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-primary-200">
+                      <div className="text-sm text-gray-500 mb-2">附近限制</div>
+                      <ul className="space-y-1">
+                        {areaInfo.nearbyRestrictions.map((r, i) => (
+                          <li key={i} className="text-sm text-gray-700 flex items-start">
+                            <AlertCircle className="w-4 h-4 text-warning-500 mr-2 flex-shrink-0 mt-0.5" />
+                            {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
               <div className="mt-6" ref={materialsRef}>
                 <div className="flex items-center space-x-2 mb-4">
                   <FileText className="w-5 h-5 text-primary-600" />
@@ -131,14 +291,34 @@ export default function RulesPage() {
                       当前定位
                     </span>
                   )}
+                  {showDraftPanel && (
+                    <span className="ml-2 text-xs text-gray-500">
+                      已准备: {preparedCount}/{materialsChecklist.length}
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-3">
-                  {activeRule.materials.map((material, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center">
+                  {materialsChecklist.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+                        showDraftPanel ? 'bg-gray-50 hover:bg-gray-100 cursor-pointer' : 'bg-gray-50'
+                      }`}
+                      onClick={() => showDraftPanel && handleToggleMaterial(index)}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        item.prepared 
+                          ? 'bg-success-500 border-success-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {item.prepared && <CheckCircle className="w-3 h-3 text-white" />}
+                      </div>
+                      <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-medium text-primary-600">{index + 1}</span>
                       </div>
-                      <span className="text-gray-700">{material}</span>
+                      <span className={`text-gray-700 ${item.prepared ? 'line-through text-gray-400' : ''}`}>
+                        {item.name}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -176,21 +356,106 @@ export default function RulesPage() {
                 </div>
               </div>
 
-              {state?.action === 'apply' && (
-                <div className="mt-8 p-6 bg-success-50 rounded-xl border border-success-200">
-                  <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
-                    <ArrowLeft className="w-5 h-5 text-success-600" />
-                    <span>开始申请流程</span>
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    您已选择区域 <strong>{state.areaName}</strong>，用途为 <strong>{state.purpose}</strong>。
-                    请准备好上述材料清单中的所有材料，提前 {activeRule.advanceDays} 个工作日提交申请。
-                  </p>
-                  <button className="px-6 py-3 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors font-medium">
-                    开始填写申请表
-                  </button>
-                </div>
-              )}
+              <div className="mt-8">
+                <button
+                  onClick={() => setShowDraftPanel(!showDraftPanel)}
+                  className="w-full p-4 bg-primary-50 border border-primary-200 rounded-xl hover:bg-primary-100 transition-colors flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Edit3 className="w-5 h-5 text-primary-600" />
+                    <span className="font-medium text-gray-800">申请预填草稿</span>
+                  </div>
+                  <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showDraftPanel ? 'rotate-90' : ''}`} />
+                </button>
+
+                {showDraftPanel && (
+                  <div className="mt-4 p-6 bg-white border border-gray-200 rounded-xl">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">申请日期</label>
+                        <input
+                          type="date"
+                          value={draftDate}
+                          onChange={(e) => setDraftDate(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">时段选择</label>
+                        <select
+                          value={draftTimeSlot}
+                          onChange={(e) => setDraftTimeSlot(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        >
+                          <option value="">请选择时段</option>
+                          <option value="morning">上午 (06:00-12:00)</option>
+                          <option value="afternoon">下午 (12:00-18:00)</option>
+                          <option value="evening">晚上 (18:00-22:00)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">材料准备状态</label>
+                      <p className="text-xs text-gray-500 mb-3">点击材料项标记是否已准备</p>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4 pb-4 border-b">
+                      <div className="text-sm text-gray-500">
+                        已保存的草稿: {drafts.length} 条
+                      </div>
+                      {selectedDraft && (
+                        <button
+                          onClick={handleDeleteDraft}
+                          className="text-sm text-danger-600 hover:text-danger-700 flex items-center space-x-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>删除当前草稿</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={handleSaveDraft}
+                        disabled={isSaving}
+                        className="flex-1 btn-primary flex items-center justify-center space-x-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Save className="w-4 h-4 animate-spin" />
+                            <span>保存中...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            <span>{selectedDraft ? '更新草稿' : '保存草稿'}</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                      >
+                        继续申请
+                      </button>
+                    </div>
+
+                    {selectedDraft && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">
+                            上次保存: {new Date(selectedDraft.updatedAt).toLocaleString('zh-CN')}
+                          </span>
+                          <span className="text-success-600 flex items-center space-x-1">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>已保存</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

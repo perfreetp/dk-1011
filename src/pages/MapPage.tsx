@@ -4,13 +4,14 @@ import { Map, Clock, Filter, Info, CheckCircle, AlertTriangle, XCircle, Phone, M
 import { mockAreas } from '../data/mockData';
 
 type AreaType = 'all' | 'available' | 'restricted' | 'forbidden';
-type DateRange = 'all' | 'today' | 'week' | 'month';
+type DateRange = 'all' | 'today' | 'week' | 'weekend' | 'month';
+type TimeSlot = 'all' | 'workday' | 'weekend' | 'morning' | 'afternoon' | 'evening';
 
 interface FilterScheme {
   id: string;
   name: string;
   selectedType: AreaType;
-  timeFilter: string;
+  timeFilter: TimeSlot;
   purposeFilter: string;
   dateFilter: DateRange;
   createdAt: number;
@@ -22,7 +23,7 @@ export default function MapPage() {
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<AreaType>('all');
   const [selectedArea, setSelectedArea] = useState(mockAreas[0]);
-  const [timeFilter, setTimeFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState<TimeSlot>('all');
   const [purposeFilter, setPurposeFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState<DateRange>('all');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
@@ -77,15 +78,82 @@ export default function MapPage() {
 
   const allPurposes = [...new Set(mockAreas.flatMap((area) => area.applicablePurposes))];
 
+  const isTodayAvailable = (area: typeof mockAreas[0]) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    if (isWeekend) {
+      return !area.applicableTime.includes('工作日');
+    }
+    return area.applicableTime.includes('工作日') || !area.applicableTime.includes('工作日');
+  };
+
+  const isWeekAvailable = (area: typeof mockAreas[0]) => {
+    return true;
+  };
+
+  const isWeekendAvailable = (area: typeof mockAreas[0]) => {
+    return !area.applicableTime.includes('工作日');
+  };
+
+  const isMonthAvailable = (area: typeof mockAreas[0]) => {
+    return true;
+  };
+
+  const checkDateFilter = (area: typeof mockAreas[0]) => {
+    switch (dateFilter) {
+      case 'today':
+        return isTodayAvailable(area);
+      case 'week':
+        return isWeekAvailable(area);
+      case 'weekend':
+        return isWeekendAvailable(area);
+      case 'month':
+        return isMonthAvailable(area);
+      default:
+        return true;
+    }
+  };
+
+  const checkTimeSlot = (area: typeof mockAreas[0]) => {
+    if (timeFilter === 'all') return true;
+    
+    const applicableTime = area.applicableTime;
+    
+    if (timeFilter === 'workday' && applicableTime.includes('工作日')) return true;
+    if (timeFilter === 'weekend' && !applicableTime.includes('工作日')) return true;
+    
+    const hasTimeRange = /(\d{2}):(\d{2})-(\d{2}):(\d{2})/.exec(applicableTime);
+    if (hasTimeRange) {
+      const startHour = parseInt(hasTimeRange[1]);
+      const endHour = parseInt(hasTimeRange[3]);
+      
+      if (timeFilter === 'morning') return startHour <= 12 && endHour > 6;
+      if (timeFilter === 'afternoon') return startHour < 18 && endHour > 12;
+      if (timeFilter === 'evening') return startHour < 22 && endHour > 18;
+    }
+    
+    const timeStr = applicableTime.toLowerCase();
+    if (timeFilter === 'morning') {
+      return timeStr.includes('上午') || timeStr.includes('06') || timeStr.includes('07') || timeStr.includes('08') || timeStr.includes('09') || timeStr.includes('10') || timeStr.includes('11');
+    }
+    if (timeFilter === 'afternoon') {
+      return timeStr.includes('下午') || timeStr.includes('12') || timeStr.includes('13') || timeStr.includes('14') || timeStr.includes('15') || timeStr.includes('16') || timeStr.includes('17') || timeStr.includes('18');
+    }
+    if (timeFilter === 'evening') {
+      return timeStr.includes('晚上') || timeStr.includes('19') || timeStr.includes('20') || timeStr.includes('21') || timeStr.includes('22');
+    }
+    
+    return false;
+  };
+
   const filteredAreas = mockAreas.filter((area) => {
     const typeMatch = selectedType === 'all' || area.type === selectedType;
     const purposeMatch = purposeFilter === 'all' || area.applicablePurposes.includes(purposeFilter);
-    const timeMatch = timeFilter === 'all' || 
-      (timeFilter === 'workday' && area.applicableTime.includes('工作日')) ||
-      (timeFilter === 'weekend' && !area.applicableTime.includes('工作日')) ||
-      (timeFilter === 'morning' && area.applicableTime.includes('08') || area.applicableTime.includes('06') || area.applicableTime.includes('07') || area.applicableTime.includes('09')) ||
-      (timeFilter === 'afternoon' && area.applicableTime.includes('12') || area.applicableTime.includes('13') || area.applicableTime.includes('14') || area.applicableTime.includes('15') || area.applicableTime.includes('16') || area.applicableTime.includes('17') || area.applicableTime.includes('18'));
-    return typeMatch && purposeMatch && timeMatch;
+    const dateMatch = checkDateFilter(area);
+    const timeMatch = checkTimeSlot(area);
+    return typeMatch && purposeMatch && dateMatch && timeMatch;
   });
 
   useEffect(() => {
@@ -135,18 +203,20 @@ export default function MapPage() {
     }
   };
 
-  const timeOptions = [
+  const timeOptions: { value: TimeSlot; label: string }[] = [
     { value: 'all', label: '全部时段' },
     { value: 'workday', label: '工作日' },
     { value: 'weekend', label: '周末' },
-    { value: 'morning', label: '上午' },
-    { value: 'afternoon', label: '下午' },
+    { value: 'morning', label: '上午 (06:00-12:00)' },
+    { value: 'afternoon', label: '下午 (12:00-18:00)' },
+    { value: 'evening', label: '晚上 (18:00-22:00)' },
   ];
 
   const dateOptions: { value: DateRange; label: string }[] = [
     { value: 'all', label: '全部日期' },
     { value: 'today', label: '今天' },
     { value: 'week', label: '本周' },
+    { value: 'weekend', label: '本周末' },
     { value: 'month', label: '本月' },
   ];
 
@@ -165,7 +235,7 @@ export default function MapPage() {
     return labels[type];
   };
 
-  const getTimeLabel = (time: string) => {
+  const getTimeLabel = (time: TimeSlot) => {
     const option = timeOptions.find(o => o.value === time);
     return option?.label || '全部时段';
   };
@@ -267,7 +337,7 @@ export default function MapPage() {
                 <Clock className="w-5 h-5 text-gray-500" />
                 <select
                   value={timeFilter}
-                  onChange={(e) => setTimeFilter(e.target.value)}
+                  onChange={(e) => setTimeFilter(e.target.value as TimeSlot)}
                   className="input-field"
                 >
                   {timeOptions.map((option) => (
