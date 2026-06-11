@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { MessageCircle, Send, Download, Clock, CheckCircle, ChevronDown, ChevronUp, FileText } from 'lucide-react';
-import { mockConsultations } from '../data/mockData';
+import { mockConsultations, mockTemplates } from '../data/mockData';
+import type { Consultation } from '../types';
 
 export default function ConsultPage() {
   const [question, setQuestion] = useState('');
   const [category, setCategory] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [consultations, setConsultations] = useState<Consultation[]>(mockConsultations);
 
   const categories = [
     { value: 'policy', label: '政策咨询' },
@@ -15,23 +17,46 @@ export default function ConsultPage() {
     { value: 'other', label: '其他问题' },
   ];
 
-  const templates = [
-    { name: '空域使用申请表.docx', size: '256 KB' },
-    { name: '飞行方案模板.docx', size: '128 KB' },
-    { name: '安全保障措施模板.docx', size: '96 KB' },
-    { name: '申请材料清单.pdf', size: '512 KB' },
-  ];
+  const getCategoryLabel = (value: string) => {
+    const cat = categories.find((c) => c.value === value);
+    return cat?.label || value;
+  };
 
   const handleSubmit = () => {
     if (!question.trim() || !category) {
       return;
     }
+
+    const newConsultation: Consultation = {
+      id: Date.now().toString(),
+      question,
+      category: getCategoryLabel(category),
+      submitTime: new Date().toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).replace(/\//g, '-'),
+      status: 'pending',
+    };
+
+    setConsultations([newConsultation, ...consultations]);
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
       setQuestion('');
       setCategory('');
     }, 3000);
+  };
+
+  const handleDownload = (template: typeof mockTemplates[0]) => {
+    const link = document.createElement('a');
+    link.href = template.url;
+    link.download = template.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatusConfig = (status: string) => {
@@ -126,7 +151,7 @@ export default function ConsultPage() {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {templates.map((template, index) => (
+            {mockTemplates.map((template, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -138,7 +163,13 @@ export default function ConsultPage() {
                     <div className="text-sm text-gray-500">{template.size}</div>
                   </div>
                 </div>
-                <button className="btn-secondary text-sm">下载</button>
+                <button
+                  onClick={() => handleDownload(template)}
+                  className="btn-secondary text-sm flex items-center space-x-1"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>下载</span>
+                </button>
               </div>
             ))}
           </div>
@@ -151,7 +182,7 @@ export default function ConsultPage() {
           </h3>
 
           <div className="space-y-3">
-            {mockConsultations.map((consult) => {
+            {consultations.map((consult) => {
               const config = getStatusConfig(consult.status);
               const Icon = config.icon;
               return (

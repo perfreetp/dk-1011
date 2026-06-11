@@ -6,6 +6,13 @@ export interface Area {
   applicableTime: string;
   coordinates: string;
   status: string;
+  applicationRequirements: string[];
+  contactInfo: {
+    phone: string;
+    email: string;
+  };
+  nearbyRestrictions: string[];
+  applicablePurposes: string[];
 }
 
 export interface Application {
@@ -18,6 +25,9 @@ export interface Application {
   areaName: string;
   applicant: string;
   progressSteps: ProgressStep[];
+  statusChanges: StatusChange[];
+  correctionMaterials?: string[];
+  approvalDocUrl?: string;
 }
 
 export interface ProgressStep {
@@ -25,6 +35,13 @@ export interface ProgressStep {
   status: 'completed' | 'current' | 'pending';
   time?: string;
   description?: string;
+}
+
+export interface StatusChange {
+  status: string;
+  time: string;
+  operator?: string;
+  remark?: string;
 }
 
 export interface Rule {
@@ -54,6 +71,16 @@ export interface Feedback {
   submitTime: string;
 }
 
+export interface ErrorReport {
+  id: string;
+  errorType: string;
+  errorDetails: string;
+  areaId?: string;
+  areaName?: string;
+  submitTime: string;
+  status: 'pending' | 'processing' | 'resolved';
+}
+
 export interface Announcement {
   id: string;
   title: string;
@@ -67,4 +94,10 @@ export interface QuickEntry {
   description: string;
   icon: string;
   path: string;
+}
+
+export interface TemplateFile {
+  name: string;
+  size: string;
+  url: string;
 }

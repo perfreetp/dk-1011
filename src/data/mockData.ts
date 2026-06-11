@@ -1,4 +1,4 @@
-import { Area, Application, Rule, Consultation, Announcement, QuickEntry } from '../types';
+import { Area, Application, Rule, Consultation, Announcement, QuickEntry, TemplateFile } from '../types';
 
 export const mockAreas: Area[] = [
   {
@@ -9,6 +9,18 @@ export const mockAreas: Area[] = [
     applicableTime: '工作日 08:00-18:00',
     coordinates: 'A1',
     status: '可申请',
+    applicationRequirements: [
+      '企业营业执照复印件',
+      '无人机资质证明',
+      '飞行方案',
+      '第三者责任险证明',
+    ],
+    contactInfo: {
+      phone: '400-888-8881',
+      email: 'area-a@airspace.gov.cn',
+    },
+    nearbyRestrictions: ['东北侧500米有机场限高区域', '南侧为人员密集区需避开'],
+    applicablePurposes: ['无人机作业', '航拍测绘', '物流配送', '电力巡检'],
   },
   {
     id: '2',
@@ -18,6 +30,19 @@ export const mockAreas: Area[] = [
     applicableTime: '工作日 09:00-17:00',
     coordinates: 'B1',
     status: '限制',
+    applicationRequirements: [
+      '企业营业执照复印件',
+      '运营资质证书',
+      '详细飞行计划',
+      '安全评估报告',
+      '保险证明',
+    ],
+    contactInfo: {
+      phone: '400-888-8882',
+      email: 'area-b@airspace.gov.cn',
+    },
+    nearbyRestrictions: ['毗邻军事管制区，需严格遵守飞行路线', '禁飞时段：12:00-14:00'],
+    applicablePurposes: ['中型无人机作业', '商业航拍', '农林植保'],
   },
   {
     id: '3',
@@ -27,6 +52,13 @@ export const mockAreas: Area[] = [
     applicableTime: '全天',
     coordinates: 'C1',
     status: '禁飞',
+    applicationRequirements: [],
+    contactInfo: {
+      phone: '400-888-8883',
+      email: 'area-c@airspace.gov.cn',
+    },
+    nearbyRestrictions: ['核心安全区域，禁止任何飞行活动', '周边500米范围内禁止起降'],
+    applicablePurposes: [],
   },
   {
     id: '4',
@@ -36,6 +68,17 @@ export const mockAreas: Area[] = [
     applicableTime: '每年4-10月 06:00-20:00',
     coordinates: 'D1',
     status: '可申请',
+    applicationRequirements: [
+      '作业资质证明',
+      '作业方案',
+      '应急预案',
+    ],
+    contactInfo: {
+      phone: '400-888-8884',
+      email: 'area-d@airspace.gov.cn',
+    },
+    nearbyRestrictions: ['仅限农业植保和环境监测用途', '风力超过5级时禁止飞行'],
+    applicablePurposes: ['农业植保', '环境监测', '气象探测'],
   },
   {
     id: '5',
@@ -45,6 +88,19 @@ export const mockAreas: Area[] = [
     applicableTime: '预约制',
     coordinates: 'E1',
     status: '限制',
+    applicationRequirements: [
+      '科研机构证明',
+      '项目批准文件',
+      '试飞方案',
+      '保险证明',
+      '安全保障措施',
+    ],
+    contactInfo: {
+      phone: '400-888-8885',
+      email: 'area-e@airspace.gov.cn',
+    },
+    nearbyRestrictions: ['仅限科研用途', '需配备地面监控人员'],
+    applicablePurposes: ['科研试飞', '新机测试', '设备验证'],
   },
 ];
 
@@ -58,11 +114,18 @@ export const mockApplications: Application[] = [
     updateTime: '2024-01-18 14:30',
     areaName: 'A区-通用空域',
     applicant: 'XX科技有限公司',
+    approvalDocUrl: '#',
     progressSteps: [
       { title: '申请提交', status: 'completed', time: '2024-01-15 10:00', description: '申请已提交' },
       { title: '材料受理', status: 'completed', time: '2024-01-15 11:30', description: '材料齐全，已受理' },
       { title: '部门审核', status: 'completed', time: '2024-01-17 10:00', description: '审核通过' },
       { title: '最终批复', status: 'completed', time: '2024-01-18 14:30', description: '已批复同意' },
+    ],
+    statusChanges: [
+      { status: '已提交', time: '2024-01-15 10:00', operator: '系统', remark: '申请创建成功' },
+      { status: '已受理', time: '2024-01-15 11:30', operator: '张XX', remark: '材料齐全，予以受理' },
+      { status: '审核中', time: '2024-01-16 09:00', operator: '李XX', remark: '进入审核流程' },
+      { status: '已批复', time: '2024-01-18 14:30', operator: '王XX', remark: '审批通过' },
     ],
   },
   {
@@ -80,6 +143,11 @@ export const mockApplications: Application[] = [
       { title: '部门审核', status: 'current', time: '2024-01-17 09:00', description: '正在审核中' },
       { title: '最终批复', status: 'pending', description: '等待批复' },
     ],
+    statusChanges: [
+      { status: '已提交', time: '2024-01-16 14:00', operator: '系统', remark: '申请创建成功' },
+      { status: '已受理', time: '2024-01-16 15:30', operator: '张XX', remark: '材料齐全' },
+      { status: '审核中', time: '2024-01-17 09:00', operator: '李XX', remark: '技术评估中' },
+    ],
   },
   {
     id: '3',
@@ -90,12 +158,18 @@ export const mockApplications: Application[] = [
     updateTime: '2024-01-17 11:00',
     areaName: 'D区-临时开放区',
     applicant: 'ZZ农业科技',
+    correctionMaterials: ['飞行安全方案', '操作人员资质证明'],
     progressSteps: [
       { title: '申请提交', status: 'completed', time: '2024-01-17 09:00', description: '申请已提交' },
       { title: '材料受理', status: 'completed', time: '2024-01-17 10:00', description: '受理中' },
       { title: '补正通知', status: 'current', time: '2024-01-17 11:00', description: '请补充飞行安全方案' },
       { title: '部门审核', status: 'pending', description: '等待补正材料' },
       { title: '最终批复', status: 'pending', description: '等待批复' },
+    ],
+    statusChanges: [
+      { status: '已提交', time: '2024-01-17 09:00', operator: '系统', remark: '申请创建成功' },
+      { status: '已受理', time: '2024-01-17 10:00', operator: '张XX', remark: '初步审查' },
+      { status: '需要补正', time: '2024-01-17 11:00', operator: '李XX', remark: '缺少飞行安全方案' },
     ],
   },
 ];
@@ -215,3 +289,9 @@ export const mockQuickEntries: QuickEntry[] = [
     path: '/consult',
   },
 ];
+
+export const mockTemplates: TemplateFile[] = [
+  { name: '空域使用申请表.docx', size: '256 KB', url: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQD6hb3TQQAAAIEAAAAJAAAAc3RhcnR4aXMuZHZkUEsDBBQABgAIAAAAIQD4Z93TQQAAAIEAAAAJAAAAdGVtcGxhdGUuanNvbgp0ZXh0OnhtbG5zOnhzaT0iYWRvYmU6bnM6c3RhcnRpb246OkV4dDovL2Nyb3NzLmlvL3htbG5zLXN0YXJ0aW9uLTEuMC8iOwo8dGl0bGU+U3RhdHVzIFJlcXVlc3Q8L3RpdGxlPgo8ZGF0YT4KPGRhdGEgaWQ9ImNvbnRlbnQiPgo8dGFibGU+CiAgPHRyPgogICAgPHRkPkNvbXBhbnkgTmFtZTwvdGQ+CiAgICA8dGQ+VXNlciBOYW1lPC90ZD4KICAgIDx0ZD5BcmVhIE5hbWU8L3RkPgogICAgPHRkPlNlY3VyaXR5PC90ZD4KICAgIDx0ZD5EaXNjb3JkPC90ZD4KICAgIDx0ZD5Db250YWN0PC90ZD4KICAgIDx0ZD5Cb3RoZXIgTGFuZ3VhZ2U8L3RkPgogIDwvdHI+CiAgPHRyPgogICAgPHRkPldlbGNvbWUgT2JqZWN0PC90ZD4KICAgIDx0ZD5FbWFpbDwvdGQ+CiAgICA8dGQ+UGhvbmU8L3RkPgogICAgPHRkPlByaW1hcnkgQ29kZTwvdGQ+CiAgICA8dGQ+U2Vjb25kYXJ5PC90ZD4KICAgIDx0ZD5WZXJzaW9uPC90ZD4KICAgIDx0ZD5EZXNjcmlwdGlvbjwvdGQ+CiAgPC90cj4KPC90YWJsZT4KPC9kYXRhPgo8L3htbG5zPgo=' },
+  { name: '飞行方案模板.docx', size: '128 KB', url: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQD6hb3TQQAAAIEAAAAJAAAAc3RhcnR4aXMuZHZkUEsDBBQABgAIAAAAIQD4Z93TQQAAAIEAAAAJAAAAdGVtcGxhdGUuanNvbgp0ZXh0OnhtbG5zOnhzaT0iYWRvYmU6bnM6c3RhcnRpb246OkV4dDovL2Nyb3NzLmlvL3htbG5zLXN0YXJ0aW9uLTEuMC8iOwo8dGl0bGU+RmxpZ2h0aW5nIFBhY2thZ2U8L3RpdGxlPgo8ZGF0YT4KPGRhdGEgaWQ9ImZpbGh0aW5nIj4KPHRpdGxlPkZpbGh0aW5nIFBhY2thZ2U8L3RpdGxlPgo8cGFnZT4KPC9wYWdlPgo8L2RhdGE+CjwveG1sbnM+' },
+  { name: '安全保障措施模板.docx', size: '96 KB', url: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQD6hb3TQQAAAIEAAAAJAAAAc3RhcnR4aXMuZHZkUEsDBBQABgAIAAAAIQD4Z93TQQAAAIEAAAAJAAAAdGVtcGxhdGUuanNvbgp0ZXh0OnhtbG5zOnhzaT0iYWRvYmU6bnM6c3RhcnRpb246OkV4dDovL2Nyb3NzLmlvL3htbG5zLXN0YXJ0aW9uLTEuMC8iOwo8dGl0bGU+U2VjdXJpdHkgQm91bmNhdGUgTWVzb3VyY2VzPC90aXRsZT4KPGRhdGE+CjwvZGF0YT4KPC94bWxucz4=' },
+  { name: '申请材料清单.pdf', size: '512 KB', url: 'data:application/pdf;base64,JVBERi0xLjMKJcfsj6IKNSAwIG9iago8PC9MZW5ndGggNiAwIFIvRmlsdGVyIC9GbGF0ZURlY29kZT4+CnN0cmVhbQp4nE2LQQ6CQBCF/yK/0EQ2sV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8gV8

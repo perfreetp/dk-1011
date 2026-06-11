@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Star, Send, MapPin, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown, Image } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Star, Send, MapPin, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown, Image, ChevronDown, Clock } from 'lucide-react';
+import { mockAreas } from '../data/mockData';
+import type { ErrorReport, Feedback } from '../types';
 
 export default function FeedbackPage() {
   const [rating, setRating] = useState(0);
@@ -8,6 +10,11 @@ export default function FeedbackPage() {
   const [errorDetails, setErrorDetails] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [errorSubmitted, setErrorSubmitted] = useState(false);
+  const [selectedArea, setSelectedArea] = useState('');
+  const [showAreaDropdown, setShowAreaDropdown] = useState(false);
+  const [errorReports, setErrorReports] = useState<ErrorReport[]>([]);
+  const [lastFeedback, setLastFeedback] = useState<Feedback | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const errorTypes = [
     { value: 'area', label: '区域信息错误' },
@@ -16,10 +23,38 @@ export default function FeedbackPage() {
     { value: 'other', label: '其他错误' },
   ];
 
+  useEffect(() => {
+    const savedReports = localStorage.getItem('errorReports');
+    if (savedReports) {
+      setErrorReports(JSON.parse(savedReports));
+    }
+
+    const savedFeedback = localStorage.getItem('lastFeedback');
+    if (savedFeedback) {
+      setLastFeedback(JSON.parse(savedFeedback));
+    }
+  }, []);
+
   const handleSubmitFeedback = () => {
     if (rating === 0 || !comment.trim()) {
       return;
     }
+
+    const feedback: Feedback = {
+      id: Date.now().toString(),
+      rating,
+      comment,
+      submitTime: new Date().toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).replace(/\//g, '-'),
+    };
+
+    localStorage.setItem('lastFeedback', JSON.stringify(feedback));
+    setLastFeedback(feedback);
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
@@ -32,12 +67,46 @@ export default function FeedbackPage() {
     if (!errorType || !errorDetails.trim()) {
       return;
     }
+
+    const area = mockAreas.find((a) => a.id === selectedArea);
+    const report: ErrorReport = {
+      id: Date.now().toString(),
+      errorType,
+      errorDetails,
+      areaId: selectedArea || undefined,
+      areaName: area?.name || undefined,
+      submitTime: new Date().toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).replace(/\//g, '-'),
+      status: 'pending',
+    };
+
+    const newReports = [report, ...errorReports];
+    setErrorReports(newReports);
+    localStorage.setItem('errorReports', JSON.stringify(newReports));
     setErrorSubmitted(true);
+    setShowSuccessMessage(true);
     setTimeout(() => {
       setErrorSubmitted(false);
       setErrorType('');
       setErrorDetails('');
+      setSelectedArea('');
     }, 3000);
+  };
+
+  const getAreaName = () => {
+    if (!selectedArea) return '请选择关联区域';
+    const area = mockAreas.find((a) => a.id === selectedArea);
+    return area?.name || '未知区域';
+  };
+
+  const getErrorTypeLabel = (value: string) => {
+    const type = errorTypes.find((t) => t.value === value);
+    return type?.label || value;
   };
 
   return (
@@ -155,6 +224,49 @@ export default function FeedbackPage() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">关联区域（选填）</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <button
+                  onClick={() => setShowAreaDropdown(!showAreaDropdown)}
+                  className="input-field pl-10 flex items-center justify-between"
+                >
+                  <span>{getAreaName()}</span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showAreaDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showAreaDropdown && (
+                  <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedArea('');
+                        setShowAreaDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left hover:bg-gray-50 ${
+                        !selectedArea ? 'bg-primary-50 text-primary-600' : 'text-gray-700'
+                      }`}
+                    >
+                      不关联区域
+                    </button>
+                    {mockAreas.map((area) => (
+                      <button
+                        key={area.id}
+                        onClick={() => {
+                          setSelectedArea(area.id);
+                          setShowAreaDropdown(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left hover:bg-gray-50 ${
+                          selectedArea === area.id ? 'bg-primary-50 text-primary-600' : 'text-gray-700'
+                        }`}
+                      >
+                        {area.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 错误详情描述
               </label>
@@ -201,6 +313,75 @@ export default function FeedbackPage() {
             </button>
           </div>
         </div>
+
+        {showSuccessMessage && errorReports.length > 0 && (
+          <div className="card mt-6 border-success-200 bg-success-50">
+            <div className="flex items-start space-x-3 p-4">
+              <div className="w-10 h-10 bg-success-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-success-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-success-800">上报成功</h4>
+                <p className="text-sm text-success-700 mt-1">您的反馈已收到，我们会尽快处理。</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {errorReports.length > 0 && (
+          <div className="card mt-6">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-warning-600" />
+              <span>错误上报记录</span>
+            </h3>
+            <div className="space-y-3">
+              {errorReports.slice(0, 5).map((report) => (
+                <div key={report.id} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-800">{getErrorTypeLabel(report.errorType)}</span>
+                    <span className="text-xs bg-warning-100 text-warning-600 px-2 py-1 rounded">待处理</span>
+                  </div>
+                  {report.areaName && (
+                    <div className="text-xs text-gray-500 mb-1">关联区域：{report.areaName}</div>
+                  )}
+                  <p className="text-sm text-gray-600">{report.errorDetails}</p>
+                  <div className="flex items-center space-x-1 mt-2 text-xs text-gray-400">
+                    <Clock className="w-3 h-3" />
+                    <span>{report.submitTime}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {lastFeedback && (
+          <div className="card mt-6 bg-gray-50">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+              <ThumbsUp className="w-5 h-5 text-primary-600" />
+              <span>最近评价</span>
+            </h3>
+            <div className="p-4">
+              <div className="flex items-center space-x-1 mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-5 h-5 ${
+                      star <= lastFeedback.rating
+                        ? 'text-yellow-400 fill-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-gray-700">{lastFeedback.comment}</p>
+              <div className="flex items-center space-x-1 mt-2 text-xs text-gray-400">
+                <Clock className="w-3 h-3" />
+                <span>评价时间：{lastFeedback.submitTime}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card mt-6 bg-gray-50">
           <div className="flex items-start space-x-3">
