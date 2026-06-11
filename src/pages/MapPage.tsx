@@ -124,10 +124,20 @@ export default function MapPage() {
     if (timeFilter === 'workday' && applicableTime.includes('工作日')) return true;
     if (timeFilter === 'weekend' && !applicableTime.includes('工作日')) return true;
     
+    const isAllDay = applicableTime.includes('全天') || applicableTime.includes('24小时') || applicableTime.includes('00:00-24:00');
+    const isReservation = applicableTime.includes('预约制') || applicableTime.includes('预约');
+    const isFlexible = applicableTime.includes('灵活') || applicableTime.includes('按需');
+    
+    if ((isAllDay || isReservation || isFlexible) && timeFilter !== 'workday' && timeFilter !== 'weekend') {
+      return true;
+    }
+    
     const hasTimeRange = /(\d{2}):(\d{2})-(\d{2}):(\d{2})/.exec(applicableTime);
     if (hasTimeRange) {
       const startHour = parseInt(hasTimeRange[1]);
       const endHour = parseInt(hasTimeRange[3]);
+      
+      if (startHour === 0 && endHour >= 22) return true;
       
       if (timeFilter === 'morning') return startHour <= 12 && endHour > 6;
       if (timeFilter === 'afternoon') return startHour < 18 && endHour > 12;
@@ -248,7 +258,9 @@ export default function MapPage() {
         areaId: selectedArea.id,
         areaName: selectedArea.name,
         purpose: purpose,
-        action: 'apply'
+        action: 'apply',
+        dateFilter: dateFilter,
+        timeFilter: timeFilter
       }
     });
   };
@@ -261,7 +273,9 @@ export default function MapPage() {
         areaId: selectedArea.id,
         areaName: selectedArea.name,
         purpose: purpose,
-        action: 'viewMaterials'
+        action: 'viewMaterials',
+        dateFilter: dateFilter,
+        timeFilter: timeFilter
       }
     });
   };

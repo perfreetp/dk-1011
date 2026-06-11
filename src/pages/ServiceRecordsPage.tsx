@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, MessageCircle, AlertCircle, ThumbsUp, Edit3, Download, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock } from 'lucide-react';
+import { FileText, MessageCircle, AlertCircle, ThumbsUp, Edit3, Download, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, Upload, ClipboardList } from 'lucide-react';
 import type { Consultation, Feedback, ErrorReport } from '../types';
 
 interface DraftApplication {
@@ -14,10 +14,20 @@ interface DraftApplication {
   updatedAt: number;
 }
 
+interface CorrectionRecord {
+  id: string;
+  applicationNo: string;
+  materials: string[];
+  description: string;
+  submitTime: string;
+  status: 'pending' | 'reviewing' | 'accepted';
+}
+
 const CONSULT_KEY = 'consultations';
 const ERROR_REPORTS_KEY = 'errorReports';
 const FEEDBACK_KEY = 'lastFeedback';
 const DRAFT_KEY = 'application_drafts';
+const CORRECTION_KEY = 'correction_records';
 
 function loadConsultations(): Consultation[] {
   try {
@@ -55,13 +65,23 @@ function loadDrafts(): DraftApplication[] {
   }
 }
 
-type RecordType = 'consult' | 'error' | 'feedback' | 'draft';
+function loadCorrectionRecords(): CorrectionRecord[] {
+  try {
+    const data = localStorage.getItem(CORRECTION_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+type RecordType = 'consult' | 'error' | 'feedback' | 'draft' | 'correction';
 
 const recordTypes: { type: RecordType; label: string; icon: typeof MessageCircle; color: string }[] = [
   { type: 'consult', label: '咨询记录', icon: MessageCircle, color: 'text-primary-600' },
   { type: 'error', label: '地图错误上报', icon: AlertCircle, color: 'text-warning-600' },
   { type: 'feedback', label: '评价记录', icon: ThumbsUp, color: 'text-success-600' },
   { type: 'draft', label: '申请草稿', icon: Edit3, color: 'text-purple-600' },
+  { type: 'correction', label: '补正材料记录', icon: Upload, color: 'text-blue-600' },
 ];
 
 export default function ServiceRecordsPage() {
@@ -73,6 +93,7 @@ export default function ServiceRecordsPage() {
   const errorReports = loadErrorReports();
   const feedback = loadFeedback();
   const drafts = loadDrafts();
+  const corrections = loadCorrectionRecords();
 
   const getTypeStats = () => {
     return {
@@ -80,6 +101,7 @@ export default function ServiceRecordsPage() {
       error: errorReports.length,
       feedback: feedback ? 1 : 0,
       draft: drafts.length,
+      correction: corrections.length,
     };
   };
 
@@ -99,6 +121,9 @@ export default function ServiceRecordsPage() {
       case 'draft':
         localStorage.removeItem(DRAFT_KEY);
         break;
+      case 'correction':
+        localStorage.removeItem(CORRECTION_KEY);
+        break;
     }
     setConfirmClear(null);
     window.location.reload();
@@ -109,6 +134,7 @@ export default function ServiceRecordsPage() {
     localStorage.removeItem(ERROR_REPORTS_KEY);
     localStorage.removeItem(FEEDBACK_KEY);
     localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(CORRECTION_KEY);
     window.location.reload();
   };
 
@@ -133,6 +159,10 @@ export default function ServiceRecordsPage() {
         data = { exportTime: new Date().toLocaleString('zh-CN'), records: drafts };
         filename = `drafts_${new Date().toISOString().slice(0, 10)}.json`;
         break;
+      case 'correction':
+        data = { exportTime: new Date().toLocaleString('zh-CN'), records: corrections };
+        filename = `corrections_${new Date().toISOString().slice(0, 10)}.json`;
+        break;
     }
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -153,6 +183,7 @@ export default function ServiceRecordsPage() {
       errorReports,
       feedback,
       drafts,
+      corrections,
     };
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -366,6 +397,85 @@ export default function ServiceRecordsPage() {
     </div>
   );
 
+  const groupedCorrections = corrections.reduce((acc, record) => {
+    if (!acc[record.applicationNo]) {
+      acc[record.applicationNo] = [];
+    }
+    acc[record.applicationNo].push(record);
+    return acc;
+  }, {} as Record<string, CorrectionRecord[]>);
+
+  const getCorrectionStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return '待审核';
+      case 'reviewing': return '审核中';
+      case 'accepted': return '已受理';
+      default: return status;
+    }
+  };
+
+  const getCorrectionStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-warning-100 text-warning-600';
+      case 'reviewing': return 'bg-primary-100 text-primary-600';
+      case 'accepted': return 'bg-success-100 text-success-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const renderCorrectionRecords = () => (
+    <div className="space-y-3">
+      {corrections.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p>暂无补正材料记录</p>
+        </div>
+      ) : (
+        Object.entries(groupedCorrections).map(([appNo, records]) => (
+          <div key={appNo} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ClipboardList className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-gray-800">{appNo}</span>
+                <span className="text-sm text-gray-500">({records.length}条记录)</span>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {records.map((record) => (
+                <div key={record.id} className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-500">提交时间：{record.submitTime}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCorrectionStatusColor(record.status)}`}>
+                      {getCorrectionStatusLabel(record.status)}
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <div className="text-sm text-gray-500 mb-1">提交材料：</div>
+                    <div className="flex flex-wrap gap-2">
+                      {record.materials.map((material, i) => (
+                        <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                          {material}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {record.description && (
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <div className="text-sm text-gray-600">
+                        <Clock className="w-4 h-4 inline mr-2 text-blue-500" />
+                        {record.description}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeType) {
       case 'consult':
@@ -376,12 +486,14 @@ export default function ServiceRecordsPage() {
         return renderFeedback();
       case 'draft':
         return renderDrafts();
+      case 'correction':
+        return renderCorrectionRecords();
       default:
         return null;
     }
   };
 
-  const totalRecords = stats.consult + stats.error + stats.feedback + stats.draft;
+  const totalRecords = stats.consult + stats.error + stats.feedback + stats.draft + stats.correction;
 
   return (
     <div className="min-h-screen bg-gray-50">

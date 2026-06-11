@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, Clock, AlertCircle, Lightbulb, ChevronRight, ArrowLeft, MapPin, Edit3, Save, CheckCircle, Trash2 } from 'lucide-react';
+import { BookOpen, FileText, Clock, AlertCircle, AlertTriangle, Lightbulb, ChevronRight, ArrowLeft, MapPin, Edit3, Save, CheckCircle, Trash2 } from 'lucide-react';
 import { mockRules, mockAreas } from '../data/mockData';
 
 interface LocationState {
@@ -8,6 +8,8 @@ interface LocationState {
   areaName?: string;
   purpose?: string;
   action?: 'apply' | 'viewMaterials';
+  dateFilter?: string;
+  timeFilter?: string;
 }
 
 interface DraftApplication {
@@ -93,6 +95,28 @@ export default function RulesPage() {
         setMaterialsChecklist(existingDraft.materials);
         setDraftDate(existingDraft.date || '');
         setDraftTimeSlot(existingDraft.timeSlot || '');
+      } else if (state?.dateFilter || state?.timeFilter) {
+        const timeSlotMap: Record<string, string> = {
+          'morning': 'morning',
+          'afternoon': 'afternoon',
+          'evening': 'evening',
+          'workday': 'afternoon',
+          'weekend': 'afternoon',
+          'all': ''
+        };
+        if (state.dateFilter === 'today') {
+          const today = new Date();
+          setDraftDate(today.toISOString().split('T')[0]);
+        } else if (state.dateFilter === 'weekend') {
+          const today = new Date();
+          const daysUntilWeekend = (7 - today.getDay()) % 7;
+          const weekendDate = new Date(today);
+          weekendDate.setDate(today.getDate() + (daysUntilWeekend || 7));
+          setDraftDate(weekendDate.toISOString().split('T')[0]);
+        }
+        if (state.timeFilter && timeSlotMap[state.timeFilter]) {
+          setDraftTimeSlot(timeSlotMap[state.timeFilter]);
+        }
       }
     }
   }, [state, drafts]);
@@ -281,6 +305,109 @@ export default function RulesPage() {
                 </div>
               </div>
             )}
+
+              <div className="mt-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Lightbulb className="w-5 h-5 text-primary-600" />
+                  <h3 className="font-semibold text-gray-800">办前评估</h3>
+                </div>
+                {(() => {
+                  const areaAvailable = areaInfo?.type !== 'forbidden';
+                  const materialsReady = preparedCount === materialsChecklist.length;
+                  const hasNearbyRestrictions = areaInfo?.nearbyRestrictions.length > 0;
+                  const isRestricted = areaInfo?.type === 'restricted';
+                  
+                  let conclusion: 'available' | 'need_materials' | 'restricted' | 'forbidden';
+                  let conclusionText: string;
+                  let conclusionIcon = CheckCircle;
+                  let bgColor = 'bg-success-50';
+                  let borderColor = 'border-success-200';
+                  let textColor = 'text-success-600';
+                  let iconBg = 'bg-success-100';
+                  
+                  if (!areaAvailable) {
+                    conclusion = 'forbidden';
+                    conclusionText = '该区域为禁飞区，暂不可申请';
+                    conclusionIcon = AlertCircle;
+                    bgColor = 'bg-danger-50';
+                    borderColor = 'border-danger-200';
+                    textColor = 'text-danger-600';
+                    iconBg = 'bg-danger-100';
+                  } else if (isRestricted && hasNearbyRestrictions) {
+                    conclusion = 'restricted';
+                    conclusionText = '区域有使用限制，建议先咨询确认';
+                    conclusionIcon = AlertTriangle;
+                    bgColor = 'bg-warning-50';
+                    borderColor = 'border-warning-200';
+                    textColor = 'text-warning-600';
+                    iconBg = 'bg-warning-100';
+                  } else if (!materialsReady) {
+                    conclusion = 'need_materials';
+                    conclusionText = `材料准备中，还需准备 ${materialsChecklist.length - preparedCount} 项材料`;
+                    conclusionIcon = AlertCircle;
+                    bgColor = 'bg-primary-50';
+                    borderColor = 'border-primary-200';
+                    textColor = 'text-primary-600';
+                    iconBg = 'bg-primary-100';
+                  } else {
+                    conclusion = 'available';
+                    conclusionText = '材料准备完成，可以申请';
+                    conclusionIcon = CheckCircle;
+                    bgColor = 'bg-success-50';
+                    borderColor = 'border-success-200';
+                    textColor = 'text-success-600';
+                    iconBg = 'bg-success-100';
+                  }
+                  
+                  const ConclusionIcon = conclusionIcon;
+                  return (
+                    <div className={`${bgColor} border ${borderColor} rounded-xl p-6`}>
+                      <div className="flex items-start space-x-4">
+                        <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                          <ConclusionIcon className={`w-6 h-6 ${textColor}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className={`font-semibold text-lg ${textColor}`}>{conclusionText}</div>
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="bg-white/50 rounded-lg p-3">
+                              <div className="text-sm text-gray-500">区域状态</div>
+                              <div className={`font-medium ${areaInfo?.type === 'available' ? 'text-success-600' : areaInfo?.type === 'restricted' ? 'text-warning-600' : 'text-danger-600'}`}>
+                                {areaInfo?.status || '未知'}
+                              </div>
+                            </div>
+                            <div className="bg-white/50 rounded-lg p-3">
+                              <div className="text-sm text-gray-500">材料进度</div>
+                              <div className="font-medium text-gray-800">
+                                {preparedCount}/{materialsChecklist.length}
+                              </div>
+                            </div>
+                            <div className="bg-white/50 rounded-lg p-3">
+                              <div className="text-sm text-gray-500">提前申请</div>
+                              <div className="font-medium text-gray-800">{activeRule.advanceDays}个工作日</div>
+                            </div>
+                          </div>
+                          {conclusion === 'restricted' && (
+                            <div className="mt-4 p-3 bg-white/50 rounded-lg">
+                              <div className="text-sm text-gray-600">
+                                <AlertCircle className="w-4 h-4 inline mr-2" />
+                                附近限制可能影响申请，建议联系客服确认具体要求
+                              </div>
+                            </div>
+                          )}
+                          {conclusion === 'available' && (
+                            <div className="mt-4 p-3 bg-white/50 rounded-lg">
+                              <div className="text-sm text-gray-600">
+                                <CheckCircle className="w-4 h-4 inline mr-2" />
+                                您已满足申请基本条件，可以开始填写申请表
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
 
               <div className="mt-6" ref={materialsRef}>
                 <div className="flex items-center space-x-2 mb-4">

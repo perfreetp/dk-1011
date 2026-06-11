@@ -14,6 +14,7 @@ interface CorrectionRecord {
   id: string;
   applicationNo: string;
   materials: string[];
+  description: string;
   submitTime: string;
   status: 'pending' | 'reviewing' | 'accepted';
 }
@@ -74,6 +75,10 @@ export default function ProgressPage() {
 
   const [correctionRecords, setCorrectionRecords] = useState<CorrectionRecord[]>([]);
   const [showSubscriptionsList, setShowSubscriptionsList] = useState(false);
+  
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+  const [correctionDescription, setCorrectionDescription] = useState('');
 
   useEffect(() => {
     setSubscriptions(loadSubscriptions());
@@ -206,13 +211,32 @@ ${new Date().toLocaleDateString('zh-CN')}
     URL.revokeObjectURL(url);
   };
 
-  const handleSubmitCorrection = () => {
+  const handleOpenCorrectionModal = () => {
     if (!searchResult?.correctionMaterials) return;
+    setSelectedMaterials(searchResult.correctionMaterials);
+    setCorrectionDescription('');
+    setShowCorrectionModal(true);
+  };
+
+  const handleToggleMaterial = (material: string) => {
+    if (selectedMaterials.includes(material)) {
+      setSelectedMaterials(selectedMaterials.filter(m => m !== material));
+    } else {
+      setSelectedMaterials([...selectedMaterials, material]);
+    }
+  };
+
+  const handleSubmitCorrection = () => {
+    if (selectedMaterials.length === 0) {
+      alert('请至少选择一项补正材料');
+      return;
+    }
 
     const newRecord: CorrectionRecord = {
       id: generateId(),
-      applicationNo: searchResult.applicationNo,
-      materials: searchResult.correctionMaterials,
+      applicationNo: searchResult!.applicationNo,
+      materials: selectedMaterials,
+      description: correctionDescription,
       submitTime: new Date().toLocaleString('zh-CN'),
       status: 'pending',
     };
@@ -220,8 +244,11 @@ ${new Date().toLocaleDateString('zh-CN')}
     const updated = [...correctionRecords, newRecord];
     setCorrectionRecords(updated);
     saveCorrectionRecords(updated);
+    setShowCorrectionModal(false);
+    setSelectedMaterials([]);
+    setCorrectionDescription('');
     
-    alert(`补正材料提交成功！\n\n提交材料：${searchResult.correctionMaterials.join('、')}\n提交时间：${newRecord.submitTime}\n\n您可以在下方查看补正材料提交记录。`);
+    alert(`补正材料提交成功！\n\n提交材料：${selectedMaterials.join('、')}\n${correctionDescription ? '说明：' + correctionDescription + '\n' : ''}提交时间：${newRecord.submitTime}\n\n您可以在下方查看补正材料提交记录。`);
   };
 
   const getCorrectionStatusLabel = (status: string) => {
@@ -553,14 +580,14 @@ ${new Date().toLocaleDateString('zh-CN')}
 
                     <div className="mt-4 pt-4 border-t border-warning-200">
                       <button
-                        onClick={handleSubmitCorrection}
+                        onClick={handleOpenCorrectionModal}
                         className="btn-primary flex items-center space-x-2"
                       >
                         <Upload className="w-4 h-4" />
                         <span>提交补正材料</span>
                       </button>
                       <p className="text-xs text-gray-500 mt-2">
-                        点击按钮可查看提交方式和注意事项
+                        点击按钮选择需要补正的材料并提交
                       </p>
                     </div>
                   </div>
@@ -779,6 +806,73 @@ ${new Date().toLocaleDateString('zh-CN')}
           </div>
         )}
       </div>
+
+      {showCorrectionModal && searchResult?.correctionMaterials && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-800">提交补正材料</h3>
+              <button
+                onClick={() => setShowCorrectionModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">选择需要补正的材料</label>
+              <div className="space-y-2">
+                {searchResult.correctionMaterials.map((material) => (
+                  <label
+                    key={material}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedMaterials.includes(material)
+                        ? 'bg-primary-50 border-2 border-primary-200'
+                        : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedMaterials.includes(material)}
+                      onChange={() => handleToggleMaterial(material)}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-gray-700">{material}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">补充说明（选填）</label>
+              <textarea
+                value={correctionDescription}
+                onChange={(e) => setCorrectionDescription(e.target.value)}
+                placeholder="请简要说明补正材料的情况..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowCorrectionModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSubmitCorrection}
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center space-x-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>确认提交</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
