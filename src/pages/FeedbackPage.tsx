@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Star, Send, MapPin, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown, Image, ChevronDown, Clock } from 'lucide-react';
+import { Star, Send, MapPin, AlertCircle, CheckCircle, ThumbsUp, ThumbsDown, Image, ChevronDown, Clock, Trash2, FileDown } from 'lucide-react';
 import { mockAreas } from '../data/mockData';
 import type { ErrorReport, Feedback } from '../types';
+
+const ERROR_REPORTS_KEY = 'errorReports';
+const LAST_FEEDBACK_KEY = 'lastFeedback';
 
 export default function FeedbackPage() {
   const [rating, setRating] = useState(0);
@@ -24,12 +27,12 @@ export default function FeedbackPage() {
   ];
 
   useEffect(() => {
-    const savedReports = localStorage.getItem('errorReports');
+    const savedReports = localStorage.getItem(ERROR_REPORTS_KEY);
     if (savedReports) {
       setErrorReports(JSON.parse(savedReports));
     }
 
-    const savedFeedback = localStorage.getItem('lastFeedback');
+    const savedFeedback = localStorage.getItem(LAST_FEEDBACK_KEY);
     if (savedFeedback) {
       setLastFeedback(JSON.parse(savedFeedback));
     }
@@ -53,7 +56,7 @@ export default function FeedbackPage() {
       }).replace(/\//g, '-'),
     };
 
-    localStorage.setItem('lastFeedback', JSON.stringify(feedback));
+    localStorage.setItem(LAST_FEEDBACK_KEY, JSON.stringify(feedback));
     setLastFeedback(feedback);
     setSubmitted(true);
     setTimeout(() => {
@@ -87,7 +90,7 @@ export default function FeedbackPage() {
 
     const newReports = [report, ...errorReports];
     setErrorReports(newReports);
-    localStorage.setItem('errorReports', JSON.stringify(newReports));
+    localStorage.setItem(ERROR_REPORTS_KEY, JSON.stringify(newReports));
     setErrorSubmitted(true);
     setShowSuccessMessage(true);
     setTimeout(() => {
@@ -96,6 +99,61 @@ export default function FeedbackPage() {
       setErrorDetails('');
       setSelectedArea('');
     }, 3000);
+  };
+
+  const handleClearErrorReports = () => {
+    if (window.confirm('确定要清空所有错误上报记录吗？此操作不可恢复。')) {
+      setErrorReports([]);
+      localStorage.removeItem(ERROR_REPORTS_KEY);
+    }
+  };
+
+  const handleExportErrorReports = () => {
+    if (errorReports.length === 0) {
+      alert('暂无错误上报记录可导出');
+      return;
+    }
+    const exportData = {
+      exportTime: new Date().toLocaleString('zh-CN'),
+      totalRecords: errorReports.length,
+      records: errorReports,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `error_reports_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearFeedback = () => {
+    if (window.confirm('确定要清空最近评价记录吗？此操作不可恢复。')) {
+      setLastFeedback(null);
+      localStorage.removeItem(LAST_FEEDBACK_KEY);
+    }
+  };
+
+  const handleExportFeedback = () => {
+    if (!lastFeedback) {
+      alert('暂无评价记录可导出');
+      return;
+    }
+    const exportData = {
+      exportTime: new Date().toLocaleString('zh-CN'),
+      feedback: lastFeedback,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `feedback_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getAreaName = () => {
@@ -330,10 +388,29 @@ export default function FeedbackPage() {
 
         {errorReports.length > 0 && (
           <div className="card mt-6">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-warning-600" />
-              <span>错误上报记录</span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-800 flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5 text-warning-600" />
+                <span>错误上报记录</span>
+                <span className="text-sm text-gray-500 font-normal">({errorReports.length}条)</span>
+              </h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleExportErrorReports}
+                  className="btn-secondary text-sm flex items-center space-x-1"
+                >
+                  <FileDown className="w-4 h-4" />
+                  <span>导出记录</span>
+                </button>
+                <button
+                  onClick={handleClearErrorReports}
+                  className="text-sm text-danger-600 hover:text-danger-700 flex items-center space-x-1 px-3 py-1.5 border border-danger-200 rounded-lg hover:bg-danger-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>清空记录</span>
+                </button>
+              </div>
+            </div>
             <div className="space-y-3">
               {errorReports.slice(0, 5).map((report) => (
                 <div key={report.id} className="p-4 bg-gray-50 rounded-lg">
@@ -357,10 +434,28 @@ export default function FeedbackPage() {
 
         {lastFeedback && (
           <div className="card mt-6 bg-gray-50">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
-              <ThumbsUp className="w-5 h-5 text-primary-600" />
-              <span>最近评价</span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-800 flex items-center space-x-2">
+                <ThumbsUp className="w-5 h-5 text-primary-600" />
+                <span>最近评价</span>
+              </h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleExportFeedback}
+                  className="btn-secondary text-sm flex items-center space-x-1"
+                >
+                  <FileDown className="w-4 h-4" />
+                  <span>导出记录</span>
+                </button>
+                <button
+                  onClick={handleClearFeedback}
+                  className="text-sm text-danger-600 hover:text-danger-700 flex items-center space-x-1 px-3 py-1.5 border border-danger-200 rounded-lg hover:bg-danger-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>清空记录</span>
+                </button>
+              </div>
+            </div>
             <div className="p-4">
               <div className="flex items-center space-x-1 mb-2">
                 {[1, 2, 3, 4, 5].map((star) => (

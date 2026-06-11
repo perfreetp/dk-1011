@@ -1,17 +1,79 @@
-import { useState } from 'react';
-import { Map, Clock, Filter, Info, CheckCircle, AlertTriangle, XCircle, Phone, Mail, AlertCircle, Calendar, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Map, Clock, Filter, Info, CheckCircle, AlertTriangle, XCircle, Phone, Mail, AlertCircle, Calendar, ChevronDown, Bookmark, Trash2, Star, ArrowRight, FileText } from 'lucide-react';
 import { mockAreas } from '../data/mockData';
 
 type AreaType = 'all' | 'available' | 'restricted' | 'forbidden';
 type DateRange = 'all' | 'today' | 'week' | 'month';
 
+interface FilterScheme {
+  id: string;
+  name: string;
+  selectedType: AreaType;
+  timeFilter: string;
+  purposeFilter: string;
+  dateFilter: DateRange;
+  createdAt: number;
+}
+
+const STORAGE_KEY = 'map_filter_schemes';
+
 export default function MapPage() {
+  const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<AreaType>('all');
   const [selectedArea, setSelectedArea] = useState(mockAreas[0]);
   const [timeFilter, setTimeFilter] = useState('all');
   const [purposeFilter, setPurposeFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState<DateRange>('all');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showSchemeDropdown, setShowSchemeDropdown] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [schemeName, setSchemeName] = useState('');
+  const [savedSchemes, setSavedSchemes] = useState<FilterScheme[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        setSavedSchemes(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse saved schemes:', e);
+      }
+    }
+  }, []);
+
+  const saveSchemesToStorage = (schemes: FilterScheme[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schemes));
+    setSavedSchemes(schemes);
+  };
+
+  const handleSaveScheme = () => {
+    if (!schemeName.trim()) return;
+    const newScheme: FilterScheme = {
+      id: Date.now().toString(),
+      name: schemeName.trim(),
+      selectedType,
+      timeFilter,
+      purposeFilter,
+      dateFilter,
+      createdAt: Date.now(),
+    };
+    saveSchemesToStorage([...savedSchemes, newScheme]);
+    setSchemeName('');
+    setShowSaveModal(false);
+  };
+
+  const handleDeleteScheme = (id: string) => {
+    saveSchemesToStorage(savedSchemes.filter(s => s.id !== id));
+  };
+
+  const handleApplyScheme = (scheme: FilterScheme) => {
+    setSelectedType(scheme.selectedType);
+    setTimeFilter(scheme.timeFilter);
+    setPurposeFilter(scheme.purposeFilter);
+    setDateFilter(scheme.dateFilter);
+    setShowSchemeDropdown(false);
+  };
 
   const allPurposes = [...new Set(mockAreas.flatMap((area) => area.applicablePurposes))];
 
@@ -25,6 +87,12 @@ export default function MapPage() {
       (timeFilter === 'afternoon' && area.applicableTime.includes('12') || area.applicableTime.includes('13') || area.applicableTime.includes('14') || area.applicableTime.includes('15') || area.applicableTime.includes('16') || area.applicableTime.includes('17') || area.applicableTime.includes('18'));
     return typeMatch && purposeMatch && timeMatch;
   });
+
+  useEffect(() => {
+    if (selectedArea && !filteredAreas.find(a => a.id === selectedArea.id)) {
+      setSelectedArea(filteredAreas[0] || null);
+    }
+  }, [filteredAreas, selectedArea]);
 
   const getStatusConfig = (type: string) => {
     switch (type) {
@@ -85,6 +153,47 @@ export default function MapPage() {
   const getDateLabel = () => {
     const option = dateOptions.find((o) => o.value === dateFilter);
     return option?.label || '全部日期';
+  };
+
+  const getTypeLabel = (type: AreaType) => {
+    const labels: Record<AreaType, string> = {
+      all: '全部',
+      available: '可申请',
+      restricted: '限制',
+      forbidden: '禁飞',
+    };
+    return labels[type];
+  };
+
+  const getTimeLabel = (time: string) => {
+    const option = timeOptions.find(o => o.value === time);
+    return option?.label || '全部时段';
+  };
+
+  const handleGoToApply = () => {
+    if (!selectedArea) return;
+    const purpose = purposeFilter !== 'all' ? purposeFilter : selectedArea.applicablePurposes[0];
+    navigate('/rules', {
+      state: {
+        areaId: selectedArea.id,
+        areaName: selectedArea.name,
+        purpose: purpose,
+        action: 'apply'
+      }
+    });
+  };
+
+  const handleViewMaterials = () => {
+    if (!selectedArea) return;
+    const purpose = purposeFilter !== 'all' ? purposeFilter : selectedArea.applicablePurposes[0];
+    navigate('/rules', {
+      state: {
+        areaId: selectedArea.id,
+        areaName: selectedArea.name,
+        purpose: purpose,
+        action: 'viewMaterials'
+      }
+    });
   };
 
   return (
@@ -184,9 +293,130 @@ export default function MapPage() {
                   ))}
                 </select>
               </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowSchemeDropdown(!showSchemeDropdown)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors"
+                >
+                  <Bookmark className="w-4 h-4" />
+                  <span className="text-sm font-medium">收藏方案</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showSchemeDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showSchemeDropdown && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                    <div className="p-3 border-b">
+                      <button
+                        onClick={() => {
+                          setShowSaveModal(true);
+                          setShowSchemeDropdown(false);
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                      >
+                        <Star className="w-4 h-4" />
+                        <span className="text-sm font-medium">保存当前筛选</span>
+                      </button>
+                    </div>
+                    {savedSchemes.length > 0 ? (
+                      <div className="max-h-64 overflow-y-auto">
+                        {savedSchemes.map((scheme) => (
+                          <div
+                            key={scheme.id}
+                            className="p-3 border-b last:border-b-0 hover:bg-gray-50"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-gray-800">{scheme.name}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteScheme(scheme.id);
+                                }}
+                                className="p-1 text-gray-400 hover:text-danger-600 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                {getTypeLabel(scheme.selectedType)}
+                              </span>
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                {getTimeLabel(scheme.timeFilter)}
+                              </span>
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                {scheme.purposeFilter === 'all' ? '全部用途' : scheme.purposeFilter}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleApplyScheme(scheme)}
+                              className="w-full px-3 py-1.5 bg-primary-50 text-primary-600 text-sm rounded hover:bg-primary-100 transition-colors"
+                            >
+                              应用此方案
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        暂无保存的筛选方案
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {showSaveModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-96 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">保存筛选方案</h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">方案名称</label>
+                <input
+                  type="text"
+                  value={schemeName}
+                  onChange={(e) => setSchemeName(e.target.value)}
+                  placeholder="请输入方案名称"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-2">当前筛选条件：</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-white text-gray-700 text-sm rounded border">
+                    区域: {getTypeLabel(selectedType)}
+                  </span>
+                  <span className="px-2 py-1 bg-white text-gray-700 text-sm rounded border">
+                    时段: {getTimeLabel(timeFilter)}
+                  </span>
+                  <span className="px-2 py-1 bg-white text-gray-700 text-sm rounded border">
+                    用途: {purposeFilter === 'all' ? '全部' : purposeFilter}
+                  </span>
+                  <span className="px-2 py-1 bg-white text-gray-700 text-sm rounded border">
+                    日期: {getDateLabel()}
+                  </span>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowSaveModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSaveScheme}
+                  disabled={!schemeName.trim()}
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
@@ -274,6 +504,10 @@ export default function MapPage() {
           <div className="space-y-4">
             <div className="card">
               <h3 className="font-semibold text-gray-800 mb-4">区域列表</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                共 {filteredAreas.length} 个区域
+                {filteredAreas.length !== mockAreas.length && ` (已筛选 ${mockAreas.length - filteredAreas.length} 个)`}
+              </p>
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {filteredAreas.map((area) => {
                   const config = getStatusConfig(area.type);
@@ -324,6 +558,11 @@ export default function MapPage() {
                       </span>
                     );
                   })()}
+                  {selectedArea.applicablePurposes.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      适用用途: {selectedArea.applicablePurposes.join('、')}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="text-right">
@@ -380,6 +619,30 @@ export default function MapPage() {
                 </div>
               </div>
             </div>
+
+            {selectedArea.type !== 'forbidden' && (
+              <div className="mt-6 pt-6 border-t">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleGoToApply}
+                    className="flex items-center justify-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    <ArrowRight className="w-5 h-5" />
+                    <span className="font-medium">去申请</span>
+                  </button>
+                  <button
+                    onClick={handleViewMaterials}
+                    className="flex items-center justify-center space-x-2 px-6 py-3 bg-white border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span className="font-medium">查看材料</span>
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-3">
+                  当前用途: {purposeFilter !== 'all' ? purposeFilter : selectedArea.applicablePurposes[0] || '通用'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

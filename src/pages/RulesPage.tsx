@@ -1,9 +1,37 @@
-import { useState } from 'react';
-import { BookOpen, FileText, Clock, AlertCircle, Lightbulb, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { BookOpen, FileText, Clock, AlertCircle, Lightbulb, ChevronRight, ArrowLeft, MapPin } from 'lucide-react';
 import { mockRules } from '../data/mockData';
 
+interface LocationState {
+  areaId?: string;
+  areaName?: string;
+  purpose?: string;
+  action?: 'apply' | 'viewMaterials';
+}
+
 export default function RulesPage() {
+  const location = useLocation();
+  const state = location.state as LocationState | undefined;
   const [activeTab, setActiveTab] = useState(mockRules[0].category);
+  const materialsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (state?.purpose) {
+      const matchingRule = mockRules.find(rule => rule.category === state.purpose);
+      if (matchingRule) {
+        setActiveTab(matchingRule.category);
+      }
+    }
+  }, [state]);
+
+  useEffect(() => {
+    if (state?.action === 'viewMaterials' && materialsRef.current) {
+      setTimeout(() => {
+        materialsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [state, activeTab]);
 
   const activeRule = mockRules.find((rule) => rule.category === activeTab) || mockRules[0];
 
@@ -14,6 +42,32 @@ export default function RulesPage() {
           <h1 className="text-2xl font-bold text-gray-800 mb-2">申请规则</h1>
           <p className="text-gray-600">了解各类飞行活动的申请要求、材料清单和限制条件</p>
         </div>
+
+        {state && (
+          <div className="card mb-6 bg-primary-50 border border-primary-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-primary-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-primary-600 font-medium">
+                    {state.action === 'apply' ? '来自地图页 - 申请入口' : '来自地图页 - 查看材料'}
+                  </p>
+                  <p className="text-gray-800 font-semibold">
+                    区域: {state.areaName || '未知区域'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <span>用途:</span>
+                <span className="px-3 py-1 bg-white rounded-full text-primary-600 font-medium">
+                  {state.purpose || '通用'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="flex flex-col lg:flex-row">
@@ -68,10 +122,15 @@ export default function RulesPage() {
                 </div>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-6" ref={materialsRef}>
                 <div className="flex items-center space-x-2 mb-4">
                   <FileText className="w-5 h-5 text-primary-600" />
                   <h3 className="font-semibold text-gray-800">材料清单</h3>
+                  {state?.action === 'viewMaterials' && (
+                    <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-600 text-xs rounded-full">
+                      当前定位
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {activeRule.materials.map((material, index) => (
@@ -116,6 +175,22 @@ export default function RulesPage() {
                   ))}
                 </div>
               </div>
+
+              {state?.action === 'apply' && (
+                <div className="mt-8 p-6 bg-success-50 rounded-xl border border-success-200">
+                  <h3 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+                    <ArrowLeft className="w-5 h-5 text-success-600" />
+                    <span>开始申请流程</span>
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    您已选择区域 <strong>{state.areaName}</strong>，用途为 <strong>{state.purpose}</strong>。
+                    请准备好上述材料清单中的所有材料，提前 {activeRule.advanceDays} 个工作日提交申请。
+                  </p>
+                  <button className="px-6 py-3 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors font-medium">
+                    开始填写申请表
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
